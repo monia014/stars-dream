@@ -100,9 +100,9 @@ const ctx = canvas.getContext("2d");
 
 /* ===== ⭐ 性能自动优化配置 ===== */
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const MAX = isMobile ? 350 : 800;          // 移动端减少粒子总数
-const glowIntensity = isMobile ? 6 : 8;    // 移动端减弱发光强度
-const starScale = isMobile ? 1.2 : 1.0;    // 移动端星星稍微调小
+const MAX = isMobile ? 300 : 800;          // 移动端减少粒子总数
+const glowIntensity = isMobile ? 4 : 8;    // 移动端减弱发光强度
+const starScale = isMobile ? 2.0 : 1.0;    // 移动端星星稍微调小
 
 let vmin;
 
