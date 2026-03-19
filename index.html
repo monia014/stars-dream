@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webcam Sweeping Fireworks</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<style>
+#main-title {
+  position: fixed;
+  top: 15%;
+  left: 15%;
+  transform: translate(-50%, -50%);
+  color: #caf0f8; /* 使用调色盘中的淡蓝色 */
+  font-family: "Courier New", serif; /* 使用衬线字体增加复古感 */
+  font-size: 3rem;
+  letter-spacing: 0.8rem;
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+  text-shadow: 0 0 15px rgba(202, 240, 248, 0.8);
+  opacity: 0.7;
+  filter: blur(0.5px); /* 微弱的模糊感 */
+  animation: float 6s ease-in-out infinite, glow 4s ease-in-out infinite alternate;
+}
+
+/* 漂浮动画 */
+@keyframes float {
+  0%, 100% { transform: translate(-50%, -55%); }
+  50% { transform: translate(-50%, -45%); }
+}
+
+/* 呼吸发光动画 */
+@keyframes glow {
+  from { text-shadow: 0 0 10px rgba(202, 240, 248, 0.5); opacity: 0.6; }
+  to { text-shadow: 0 0 30px rgba(202, 240, 248, 0.9); opacity: 0.8; }
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* 模拟老胶片的颗粒感 */
+  background: url('https://grainy-gradients.vercel.app/noise.svg');
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#webcam{
+  position:fixed;
+  width:100vw;
+  height:100vh;
+  object-fit:cover;
+  transform:scaleX(-1);
+}
+
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<h1 id="main-title">STARS' DREAM</h1>
+<video id="webcam" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let vmin;
+
+function resize(){
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+  vmin = Math.min(canvas.width, canvas.height);
+}
+resize();
+addEventListener("resize", resize);
+
+/* ===== STAR ===== */
+function drawStar(x,y,r,color,alpha=1){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.globalAlpha = alpha;
+
+  ctx.beginPath();
+  for(let i=0;i<5;i++){
+    ctx.lineTo(Math.cos((18+i*72)*Math.PI/180)*r,
+               -Math.sin((18+i*72)*Math.PI/180)*r);
+    ctx.lineTo(Math.cos((54+i*72)*Math.PI/180)*(r/2),
+               -Math.sin((54+i*72)*Math.PI/180)*(r/2));
+  }
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ===== PARTICLES ===== */
+const palette=[
+  "#ddeab0", // 
+  "#9790bf", //  
+  "#ecbc68", // 
+  "#d57194", //  
+  "#69bddb"  // 
+];
+
+const MAX = 800;
+const particles = [];
+
+class Particle{
+  constructor(){ this.active=false; }
+
+  spawn(x,y,vx,vy){
+    this.x=x;
+    this.y=y;
+    this.vx=vx;
+    this.vy=vy;
+
+    this.life=500+Math.random()*200; 
+    this.maxLife=this.life;
+
+   // ⭐ 修改点 1：让星星大小在 vmin*0.01 的基础上随机上下浮动
+    const baseSize = vmin * 0.01;
+    this.size = baseSize * (0.6 + Math.random() * 0.8); // 范围大约在 0.6x 到 1.4x 之间
+    this.color=palette[Math.random()*palette.length|0];
+    this.active=true;
+
+    this.trail=false; // ⭐ 新增
+  }
+
+  update(){
+    if(!this.active) return;
+
+    // 1. 基础空气摩擦，让运动更平滑
+    this.vx *= 0.975;
+    this.vy *= 0.975;
+    if (this.x >= 0 && this.x <= canvas.width) {
+          this.vy += 0.12; 
+    } else {
+      this.active = false; 
+      return;
+    }
+
+    // 3. 更新坐标
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // 4. 彻底掉出底部或飞出顶部的清理
+    if (this.y > canvas.height + 50 || this.y < -100) {
+      this.active = false;
+    }
+  }
+
+  draw(){
+    if(!this.active) return;
+
+// ⭐ 修改点 2：添加 shadowBlur 属性实现自发光效果
+    ctx.save();
+    ctx.shadowBlur = 8;         
+    ctx.shadowColor = this.color; // 发光颜色与星星一致
+    const alpha=Math.pow(this.life/this.maxLife,1.5);
+    drawStar(this.x,this.y,this.size,this.color,1);
+ ctx.restore();
+  }
+}
+
+for(let i=0;i<MAX;i++){
+  particles.push(new Particle());
+}
+
+function spawnExplosion(x,y,power){
+  const count = 80 + power*200;
+
+  for(let i=0;i<count;i++){
+    const p = particles.find(p=>!p.active);
+    if(!p) break;
+
+    const angle=Math.random()*Math.PI*2;
+    const speed = (vmin*0.03) * (0.5+Math.random());
+
+    p.spawn(
+      x,y,
+      Math.cos(angle)*speed,
+      Math.sin(angle)*speed
+    );
+  }
+}
+
+/* ===== PALM ===== */
+function getPalmCenter(lm){
+  const ids=[0,5,9,13,17];
+  let x=0,y=0;
+
+  ids.forEach(i=>{
+    x+=lm[i].x;
+    y+=lm[i].y;
+  });
+
+  x/=ids.length;
+  y/=ids.length;
+
+  return {
+    x:(1-x)*canvas.width,
+    y:y*canvas.height
+  };
+}
+
+/* ===== HAND ===== */
+let handsData = {};
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+/* ===== GESTURE ===== */
+function getGesture(lm){
+  const tips=[8,12,16,20];
+  const pip=[6,10,14,18];
+
+  let open=0;
+  let states=[];
+
+  for(let i=0;i<4;i++){
+    const up = lm[tips[i]].y < lm[pip[i]].y;
+    if(up) open++;
+    states.push(up);
+  }
+
+  if(open===1 && states[0]) return "point"; // ☝️
+  if(open>=3) return "palm";
+  if(open<=1) return "fist";
+  return "none";
+}
+
+/* ===== MEDIAPIPE ===== */
+const video = document.getElementById("webcam");
+
+const hands = new Hands({
+  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+
+hands.setOptions({
+  maxNumHands:2,
+  modelComplexity:1,
+  minDetectionConfidence:0.7,
+  minTrackingConfidence:0.7
+});
+
+hands.onResults(res=>{
+  const activeHands = new Set();
+
+  res.multiHandLandmarks.forEach((lm,i)=>{
+    activeHands.add(i);
+
+    const palm = getPalmCenter(lm);
+    const offsetY = -vmin * 0.02;
+
+    const tx = palm.x;
+    const ty = palm.y + offsetY;
+
+    // ⭐ 食指位置
+    const fx = (1-lm[8].x)*canvas.width;
+    const fy = lm[8].y*canvas.height;
+
+    if(!handsData[i]){
+      handsData[i]={
+        x:tx,y:ty,tx,ty,
+        prevX:tx,prevY:ty,
+        charging:false
+      };
+    }
+
+    const h = handsData[i];
+
+    h.tx = tx;
+    h.ty = ty;
+    h.fx = fx;
+    h.fy = fy;
+    h.gesture = getGesture(lm);
+  });
+
+  Object.keys(handsData).forEach(id=>{
+    if(!activeHands.has(Number(id))){
+      delete handsData[id];
+    }
+  });
+});
+
+/* ===== CAMERA ===== */
+const camera = new Camera(video,{
+  onFrame: async()=>{
+    await hands.send({image:video});
+  },
+  width:640,
+  height:480
+});
+camera.start();
+
+/* ===== LOOP ===== */
+function animate(){
+  requestAnimationFrame(animate);
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  Object.values(handsData).forEach(h=>{
+
+    h.x = lerp(h.x,h.tx,0.25);
+    h.y = lerp(h.y,h.ty,0.25);
+
+    const vx = h.x - h.prevX;
+    const vy = h.y - h.prevY;
+    const speed = Math.hypot(vx,vy);
+
+    /* ===== ☝️ POINT ===== */
+    if(h.gesture==="point"){
+      particles.forEach(p=>{
+        if(!p.active) return;
+
+        const dx = h.fx - p.x;
+        const dy = h.fy - p.y;
+        const dist = Math.hypot(dx,dy);
+
+        if(dist < 200){
+          const pull = 0.05 * (1 - dist/200);
+
+          p.vx += dx * pull;
+          p.vy += dy * pull;
+
+          p.trail = true;
+        }
+      });
+    }
+
+    /* ===== FIST ===== */
+    if(h.gesture==="fist"){
+      if(!h.charging){
+        h.charging=true;
+        h.start=performance.now();
+      }
+
+      const t=(performance.now()-h.start)/1000;
+      const power=Math.min(t/1.5,1);
+
+     // ⭐ 修改点 1：调小比例
+      // 初始半径从 vmin*0.03 开始，最大增长到 vmin*0.06
+      const r = vmin * 0.03 + power * vmin * 0.03;
+
+      // ⭐ 修改点 2：添加光晕
+      ctx.save();
+      ctx.shadowBlur = 20 * (0.5 + power); // 光晕随蓄力增强
+      ctx.shadowColor = "#fee440";              
+      // 绘制蓄力中心的大星星
+      drawStar(h.x, h.y, r, "#ffd166", 1);
+      
+      ctx.restore();
+    }
+
+    /* ===== PALM ===== */
+    if(h.gesture==="palm"){
+      if(h.charging){
+        const duration=(performance.now()-h.start)/1000;
+        const power=Math.min(duration/2,1);
+        spawnExplosion(h.x,h.y,power);
+        h.charging=false;
+      }
+
+      if(speed>5){
+        const hvx=vx/speed;
+        const hvy=vy/speed;
+
+        particles.forEach(p=>{
+          if(!p.active) return;
+
+          const dx=p.x-h.x;
+          const dy=p.y-h.y;
+          const dist=Math.hypot(dx,dy);
+
+          if(dist<150){
+            const force=(1-dist/150)*speed*0.5;
+            p.vx+=hvx*force;
+            p.vy+=hvy*force;
+          }
+        });
+      }
+    }
+
+    h.prevX = h.x;
+    h.prevY = h.y;
+  });
+
+  particles.forEach(p=>{
+    p.update();
+    p.draw();
+  });
+}
+
+animate();
+</script>
+
+</body>
+</html>
