@@ -9,22 +9,39 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <style>
-#main-title {
+/* 标题和副标题的容器，负责整体漂浮动画 */
+#title-container {
   position: fixed;
-  top: 15%;
+  top: 15%; /* 保持原位置 */
   left: 15%;
   transform: translate(-50%, -50%);
-  color: #caf0f8; /* 使用调色盘中的淡蓝色 */
-  font-family: "Courier New", serif; /* 使用衬线字体增加复古感 */
-  font-size: 3rem;
-  letter-spacing: 0.8rem;
-  text-align: center;
   z-index: 5;
   pointer-events: none;
-  text-shadow: 0 0 15px rgba(202, 240, 248, 0.8);
-  opacity: 0.7;
-  filter: blur(0.5px); /* 微弱的模糊感 */
-  animation: float 6s ease-in-out infinite, glow 4s ease-in-out infinite alternate;
+  text-align: center;
+  /* 统一的发光和模糊滤镜，保持梦核风格 */
+  filter: drop-shadow(0 0 15px rgba(202, 240, 248, 0.8)) blur(0.5px);
+  animation: float 6s ease-in-out infinite;
+}
+
+/* 主标题：STARS' DREAM */
+#main-title {
+  color: #caf0f8; /* 复古淡蓝 */
+  font-family: "Courier New", serif; /* 衬线字体增加复古感 */
+  font-size: 3rem; /* 大字号 */
+  letter-spacing: 0.8rem; /* 较大的字间距 */
+  margin-bottom: 0.5rem; /* 与副标题的间距 */
+  opacity: 0.8;
+  animation: glow 4s ease-in-out infinite alternate; /* 独立的呼吸发光动画 */
+}
+
+/* ⭐ 副标题：玩法提示 */
+#sub-title {
+  color: #ffddd2; /* 使用调色盘中的珊瑚粉，优雅且醒目 */
+  font-family: "Courier New", serif; /* 保持字体一致 */
+  font-size: 1rem; /* ⭐ 小小的字号 */
+  letter-spacing: 0.2rem; /* 较小的字间距 */
+  opacity: 0.6; /* 更透明一些，不抢主标题风头 */
+  text-transform: uppercase; /* 全大写，增加仪式感 */
 }
 
 /* 漂浮动画 */
@@ -35,8 +52,8 @@
 
 /* 呼吸发光动画 */
 @keyframes glow {
-  from { text-shadow: 0 0 10px rgba(202, 240, 248, 0.5); opacity: 0.6; }
-  to { text-shadow: 0 0 30px rgba(202, 240, 248, 0.9); opacity: 0.8; }
+  from { opacity: 0.7; }
+  to { opacity: 0.9; }
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body::after {
@@ -72,8 +89,10 @@ canvas{
 
 <body>
 
-<h1 id="main-title">STARS' DREAM</h1>
-<video id="webcam" autoplay playsinline></video>
+<div id="title-container">
+  <h1 id="main-title">STARS' DREAM</h1>
+  <p id="sub-title">Fist to charge, Palm to explode.</p>
+</div><video id="webcam" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
 <script>
